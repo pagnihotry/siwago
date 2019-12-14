@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -19,6 +20,9 @@ import (
 //https://developer.apple.com/documentation/signinwithapplerestapi/generate_and_validate_tokens
 const AUD = "https://appleid.apple.com"
 const APPLE_AUTH_URL = "https://appleid.apple.com/auth/token"
+
+const AUTHORIZATION_CODE = "code"
+const REFRESH_TOKEN = "refresh_token"
 
 //struct for JWT Header
 type JWTHeader struct {
@@ -39,7 +43,7 @@ type JWTBody struct {
 //this should only needed to be initialized once and then can be kept in memory
 type SiwaConfig struct {
 	KeyId           string        //key Id from Certificates, Identifiers & Profiles on developers.apple.com
-	TokenDelta      time.Duration //duration for which you would want the generated client_secret jwt token to be valid, cant be more than 6 months
+	TokenDelta      time.Duration //duration for which you would want the generated client_secret jwt token to be valid. Can not be more than 15777000 (6 months in seconds) from the Current Unix Time on the server.
 	TeamId          string        //Team Id that is configured with Key, can also ne found in Certificates, Identifiers & Profiles on developers.apple.com
 	BundleId        string        //bundleId for product com.companyname.product
 	PemFileContents []byte        //contents of the p8 file
@@ -219,9 +223,23 @@ func (self *SiwaConfig) GetClientSecret() (string, error) {
 	return clientSecret, nil
 }
 
+//function to exchange authorization code for id token, access token, refresh token, etc.
+func (self *SiwaConfig) ExchangeAuthCode(code string, redirectUri string) (*Token, error) {
+	return self.validateWithApple(code, AUTHORIZATION_CODE, redirectUri)
+}
+
+//function to exchange refresh token for access token
+func (self *SiwaConfig) ExchangeRefreshToken(code string, redirectUri string) (*Token, error) {
+	return self.validateWithApple(code, REFRESH_TOKEN, redirectUri)
+}
+
 //put together the data to make a request to apple
 //and return the generated token as an object
-func (self *SiwaConfig) ExchangeAuthCode(code string, redirectUri string) (*Token, error) {
+func (self *SiwaConfig) validateWithApple(code string, codeType string, redirectUri string) (*Token, error) {
+
+	if codeType != AUTHORIZATION_CODE && codeType != REFRESH_TOKEN {
+		return nil, errors.New(fmt.Sprintf("codeType can be %v or %v. %v recieved", AUTHORIZATION_CODE, REFRESH_TOKEN, codeType))
+	}
 
 	var err error
 	var clientSecret string
@@ -246,8 +264,13 @@ func (self *SiwaConfig) ExchangeAuthCode(code string, redirectUri string) (*Toke
 	form = url.Values{}
 	form.Add("client_id", self.BundleId)
 	form.Add("client_secret", clientSecret)
-	form.Add("code", code)
-	form.Add("grant_type", "authorization_code")
+	form.Add(codeType, code)
+	switch codeType {
+	case AUTHORIZATION_CODE:
+		form.Add("grant_type", "authorization_code")
+	case REFRESH_TOKEN:
+		form.Add("grant_type", "refresh_token")
+	}
 	form.Add("redirect_uri", redirectUri)
 
 	//initiate the http request
@@ -281,11 +304,15 @@ func (self *SiwaConfig) ExchangeAuthCode(code string, redirectUri string) (*Toke
 		return &tok, errors.New(tok.Error)
 	}
 
-	//validate id token
-	tok.Valid, reason = ValidateIdTokenWithNonce(self.BundleId, tok.IdToken, self.Nonce)
-	if !tok.Valid {
-		//if invalid, add message as an error
-		return &tok, errors.New(reason)
+	//validate id token only for authorization code
+	if tok.IdToken != "" || codeType == AUTHORIZATION_CODE {
+		tok.Valid, reason = ValidateIdTokenWithNonce(self.BundleId, tok.IdToken, self.Nonce)
+		if !tok.Valid {
+			//if invalid, add message as an error
+			return &tok, errors.New(reason)
+		}
+	} else {
+		tok.Valid = true
 	}
 
 	return &tok, nil
