@@ -31,6 +31,14 @@ type JWTTokenBody struct {
 	Nonce          string `json:"nonce"`
 }
 
+//struct to hold the decoded idtoken
+type SiwaIdToken struct {
+	Header    *JWTTokenHeader
+	Body      *JWTTokenBody
+	Signature []byte
+	Valid     bool
+}
+
 //struct for token returned from apple
 type Token struct {
 	//(Reserved for future use) A token used to access allowed data. Currently, no data set has been defined for access.
@@ -50,6 +58,9 @@ type Token struct {
 	//After the token is fetched from apple, id token is validated
 	//this field stores the result of the validation check
 	Valid bool `json:"_"`
+	//The decoded Id token
+	//Holds the decoded JWT Header, Body, Signature and result of validity check
+	DecodedIdToken *SiwaIdToken `json:"_"`
 }
 
 func (self Token) String() string {
@@ -79,44 +90,49 @@ func verifyAppleRSA256(message string, signature []byte, kid string) bool {
 }
 
 //validates idToken without nonce check
-func ValidateIdToken(aud string, idToken string) (bool, string) {
+func ValidateIdToken(aud string, idToken string) (*SiwaIdToken, string) {
 	return ValidateIdTokenWithNonce(aud, idToken, "")
 }
 
 //validates idtoken
 //more info: https://developer.apple.com/documentation/signinwithapplerestapi/verifying_a_user
-func ValidateIdTokenWithNonce(aud string, idToken string, nonce string) (bool, string) {
+func ValidateIdTokenWithNonce(aud string, idToken string, nonce string) (*SiwaIdToken, string) {
+
+	//initialize the token object
+	var siwaIdToken *SiwaIdToken = &SiwaIdToken{Valid: false}
 
 	if idToken == "" {
-		return false, "empty_token"
+		return siwaIdToken, "empty_token"
 	}
 
 	//split and decode token
 	parts := strings.Split(idToken, ".")
 	if len(parts) != 3 {
-		return false, "invalid_format_missing_parts"
+		return siwaIdToken, "invalid_format_missing_parts"
 	}
 	jsonHeaderB, err := base64UrlDecode(parts[0])
 	if err != nil {
-		return false, "invalid_format_header_base64_decode_failed error:" + err.Error()
+		return siwaIdToken, "invalid_format_header_base64_decode_failed error:" + err.Error()
 	}
 	var jwtHeader JWTTokenHeader
 	err = json.Unmarshal(jsonHeaderB, &jwtHeader)
 	if err != nil {
-		return false, "invalid_format_header_json_decode_failed error:" + err.Error()
+		return siwaIdToken, "invalid_format_header_json_decode_failed error:" + err.Error()
 	}
 	jsonBodyB, err := base64UrlDecode(parts[1])
 	if err != nil {
-		return false, "invalid_format_body_base64_decode_failed error:" + err.Error()
+		return siwaIdToken, "invalid_format_body_base64_decode_failed error:" + err.Error()
 	}
 	var jwtBody JWTTokenBody
 	err = json.Unmarshal(jsonBodyB, &jwtBody)
 	if err != nil {
-		return false, "invalid_format_body_json_decode_failed error:" + err.Error()
+		return siwaIdToken, "invalid_format_body_json_decode_failed error:" + err.Error()
 	}
 
+	//the basic validation tests pass. Now check if the contents of token are valid
 	var reason string
 	var valid bool = true
+
 	//Verify the nonce for the authentication
 	//if idtoken had nonce, the check will fail
 	if jwtBody.Nonce != "" && jwtBody.Nonce != nonce {
@@ -153,5 +169,11 @@ func ValidateIdTokenWithNonce(aud string, idToken string, nonce string) (bool, s
 		valid = false
 	}
 
-	return valid, reason
+	//set the values of parsed token into the id token object
+	siwaIdToken.Header = &jwtHeader
+	siwaIdToken.Body = &jwtBody
+	siwaIdToken.Valid = valid
+	siwaIdToken.Signature = decodedSignature
+
+	return siwaIdToken, reason
 }

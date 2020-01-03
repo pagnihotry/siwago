@@ -250,6 +250,7 @@ func (self *SiwaConfig) validateWithApple(code string, codeType string, redirect
 	var bodyContents []byte
 	var tok Token
 	var reason string
+	var siwaIdToken *SiwaIdToken
 
 	//check if siwa object is valid, all required values have been set
 	if _, err = self.ValidateObject(); err != nil {
@@ -306,7 +307,10 @@ func (self *SiwaConfig) validateWithApple(code string, codeType string, redirect
 
 	//validate id token only for authorization code
 	if tok.IdToken != "" || codeType == AUTHORIZATION_CODE {
-		tok.Valid, reason = ValidateIdTokenWithNonce(self.BundleId, tok.IdToken, self.Nonce)
+		siwaIdToken, reason = ValidateIdTokenWithNonce(self.BundleId, tok.IdToken, self.Nonce)
+		tok.DecodedIdToken = siwaIdToken
+		//token validity is same as siwa id token validity
+		tok.Valid = siwaIdToken.Valid
 		if !tok.Valid {
 			//if invalid, add message as an error
 			return &tok, errors.New(reason)

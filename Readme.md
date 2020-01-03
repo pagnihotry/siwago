@@ -103,6 +103,9 @@ type Token struct {
     //After the token is fetched from apple, id token is validated
     //this field stores the result of the validation check
     Valid bool `json:"_"`
+    //The decoded Id token
+    //Holds the decoded JWT Header, Body, Signature and result of validity check
+    DecodedIdToken *SiwaIdToken `json:"_"`
 }
 ```
 
