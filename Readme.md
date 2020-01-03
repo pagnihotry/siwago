@@ -55,12 +55,12 @@ The signing secret or the private key can be set with a file on the disk - .p8 f
 
 Private key file format:
 ```
-//-----BEGIN PRIVATE KEY-----
-//jkfweshjdjkhjsbjvguybjebvuewkvbbhj+jbdhbjhbvjhbvjhbvbjvbvjvagcve
-//jkfweshjdjkhjsbjvguybje/vuewkvbbhjdjbdhbjhbvjhbvjhbvbjvbvjvagcve
-//jkfweshjdjkhjsbjvguybjebvuewkvbbhj+jbdhbjhbvjhbvjhbvbjvbvjvagcve
-//jkfweshj
-//-----END PRIVATE KEY-----
+-----BEGIN PRIVATE KEY-----
+jkfweshjdjkhjsbjvguybjebvuewkvbbhj+jbdhbjhbvjhbvjhbvbjvbvjvagcve
+jkfweshjdjkhjsbjvguybje/vuewkvbbhjdjbdhbjhbvjhbvjhbvbjvbvjvagcve
+jkfweshjdjkhjsbjvguybjebvuewkvbbhj+jbdhbjhbvjhbvjhbvbjvbvjvagcve
+jkfweshj
+-----END PRIVATE KEY-----
 ```
 
 #### File
