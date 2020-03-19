@@ -159,7 +159,7 @@ func main() {
     //to check if the apple request failed or token validation failed
     if err != nil {
         if token == nil {
-            fmt.Println("Error with exchanging token.", err.Error(), token.String())
+            fmt.Println("Error with exchanging token, token is nil.", err.Error())
         } else if token.Error != "" {
             fmt.Println("Error while requesting token error:", token.Error)
         } else if !token.Valid {
