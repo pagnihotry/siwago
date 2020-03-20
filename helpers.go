@@ -17,7 +17,7 @@ import (
 const APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys"
 
 //global cache for fast subsequent fetching
-var applePublicKeyObject *rsa.PublicKey
+var applePublicKeyObject map[string]*rsa.PublicKey
 
 //key object fetched from APPLE_KEYS_URL
 type AppleKey struct {
@@ -27,6 +27,10 @@ type AppleKey struct {
 	Alg string `json:"alg"`
 	N   string `json:"n"`
 	E   string `json:"e"`
+}
+
+func init() {
+	applePublicKeyObject = make(map[string]*rsa.PublicKey)
 }
 
 //make request to APPLE_KEYS_URL to get the keys
@@ -97,8 +101,8 @@ func getApplePublicKey(kid string) *AppleKey {
 func getApplePublicKeyObject(kid string, alg string) *rsa.PublicKey {
 
 	//if computed earlier, return the object
-	if applePublicKeyObject != nil {
-		return applePublicKeyObject
+	if key, ok := applePublicKeyObject[kid+alg]; ok {
+		return key
 	}
 
 	var applePublicKey *AppleKey
@@ -107,8 +111,9 @@ func getApplePublicKeyObject(kid string, alg string) *rsa.PublicKey {
 	applePublicKey = getApplePublicKey(kid)
 	//if ket found, contrust a rsa.PublikKey object
 	if applePublicKey != nil && applePublicKey.Alg == alg {
-		applePublicKeyObject = getPublicKeyObject(applePublicKey.N, applePublicKey.E)
-		return applePublicKeyObject
+		key := getPublicKeyObject(applePublicKey.N, applePublicKey.E)
+		applePublicKeyObject[kid+alg] = key
+		return key
 	}
 	return nil
 }
