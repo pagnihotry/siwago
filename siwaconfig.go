@@ -265,11 +265,6 @@ func (self *SiwaConfig) validateWithApple(code string, codeType string, redirect
 		return nil, errors.New(fmt.Sprintf("codeType can be %v or %v. %v recieved", AUTHORIZATION_CODE, REFRESH_TOKEN, codeType))
 	}
 
-	//check if siwa object is valid, all required values have been set
-	if _, err = self.ValidateForTokenExchange(); err != nil {
-		return nil, err
-	}
-
 	var err error
 	var clientSecret string
 	var form url.Values
@@ -280,6 +275,11 @@ func (self *SiwaConfig) validateWithApple(code string, codeType string, redirect
 	var tok Token
 	var reason string
 	var siwaIdToken *SiwaIdToken
+
+	//check if siwa object is valid, all required values have been set
+	if _, err = self.ValidateForTokenExchange(); err != nil {
+		return nil, err
+	}
 
 	//gather form values for post
 	clientSecret = self.ClientSecret
