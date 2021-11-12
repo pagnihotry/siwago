@@ -18,12 +18,19 @@ Get the tokens from Apple in the following three steps:
     - Using file: `siwagoObj.SetSecretP8File("/etc/keys/AuthKey_3UHT5POLK9.p8")`
     - Using file contents as string: `siwagoObj.SetSecretP8String("//-----BEGIN PRIVATE KEY-----\njkfweshjdjkhjsbjvguybjebvuewkvbbhj+jbdhbjhbvjhbvjhbvbjvbvjvagcve\njkfweshjdjkhjsbjvguybje/vuewkvbbhjdjbdhbjhbvjhbvjhbvbjvbvjvagcve\njkfweshjdjkhjsbjvguybjebvuewkvbbhj+jbdhbjhbvjhbvjhbvbjvbvjvagcve\njkfweshj\n-----END PRIVATE KEY-----")`
     - Using file contents as []byte: `siwagoObj.SetSecretP8Bytes(byteContents)`
-3. Exchange the code for a token `token:=siwagoObj.ExchangeAuthCode(code, redirectUri)` `redirectUri` can be `""` if it does not apply
+3. Exchange the code for a token `token, err :=siwagoObj.ExchangeAuthCode(code, redirectUri)` `redirectUri` can be `""` if it does not apply
+
+Alternatively, you can split the secret generation and token steps as follows:
+1. Initialize the SiwaConfig object `siwago.GetObject(KID, TEAMID, BUNDLEID, duration, "")`.
+2. Generate a secret key: `secret, err := siwagoObj.GetClientSecret()`.
+3. (Possibly in a separate process) initialize a new SiwaConfig with just the
+   client secret: `siwago.GetObjectWithSecret(BUNDLEID, nonce, secret)`.
+4. Token exchange: `token, err :=siwagoObj.ExchangeAuthCode(code, redirectUri)`
 
 
 If there is an error `token.Error` is set to the error recieved from Apple. More info: https://developer.apple.com/documentation/signinwithapplerestapi/errorresponse 
 
-In case of success token object is populated with the access token, refresh token, etc. from apple. More info: https://developer.apple.com/documentation/signinwithapplerestapi/tokenresponse
+In case of success token object is populated with the access token, refresh token, etc. from Apple. More info: https://developer.apple.com/documentation/signinwithapplerestapi/tokenresponse
 
 ## Details
 
