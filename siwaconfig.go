@@ -63,6 +63,10 @@ func GetObjectWithSecret(bundleId, nonce, clientSecret string) *SiwaConfig {
 
 //function to validate the object
 func (self *SiwaConfig) ValidateObject() (bool, error) {
+	return self.ValidateForSecretGeneration()
+}
+
+func (self *SiwaConfig) ValidateForSecretGeneration() (bool, error) {
 
 	var errorString string = ""
 	if self.KeyId == "" {
@@ -83,6 +87,20 @@ func (self *SiwaConfig) ValidateObject() (bool, error) {
 
 	if errorString != "" {
 		return false, errors.New(errorString)
+	}
+	return true, nil
+}
+
+func (self *SiwaConfig) ValidateForTokenExchange() (bool, error) {
+
+	//we should either have a ClientSecret set or be fully valid to generate one
+	if self.ClientSecret == "" {
+		if ok, err := self.ValidateForSecretGeneration(); !ok {
+			return false, err
+		}
+	}
+	if self.BundleId == "" {
+		return false, errors.New("BundleId not set")
 	}
 	return true, nil
 }
@@ -188,7 +206,7 @@ func (self *SiwaConfig) GetClientSecret() (string, error) {
 	var r, s *big.Int
 	var hashBytes []byte
 
-	if _, err = self.ValidateObject(); err != nil {
+	if _, err = self.ValidateForSecretGeneration(); err != nil {
 		return "", err
 	}
 
@@ -247,6 +265,11 @@ func (self *SiwaConfig) validateWithApple(code string, codeType string, redirect
 		return nil, errors.New(fmt.Sprintf("codeType can be %v or %v. %v recieved", AUTHORIZATION_CODE, REFRESH_TOKEN, codeType))
 	}
 
+	//check if siwa object is valid, all required values have been set
+	if _, err = self.ValidateForTokenExchange(); err != nil {
+		return nil, err
+	}
+
 	var err error
 	var clientSecret string
 	var form url.Values
@@ -261,12 +284,6 @@ func (self *SiwaConfig) validateWithApple(code string, codeType string, redirect
 	//gather form values for post
 	clientSecret = self.ClientSecret
 	if clientSecret == "" {
-		// TODO: split this into validate for signing/validate for exchange
-		//check if siwa object is valid, all required values have been set
-		if _, err = self.ValidateObject(); err != nil {
-			return nil, err
-		}
-
 		clientSecret, err = self.GetClientSecret()
 		if err != nil {
 			return nil, errors.New("Error while generating client_secret. " + err.Error())
