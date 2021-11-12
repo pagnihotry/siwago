@@ -258,14 +258,15 @@ func (self *SiwaConfig) validateWithApple(code string, codeType string, redirect
 	var reason string
 	var siwaIdToken *SiwaIdToken
 
-	//check if siwa object is valid, all required values have been set
-	if _, err = self.ValidateObject(); err != nil {
-		return nil, err
-	}
-
 	//gather form values for post
 	clientSecret = self.ClientSecret
 	if clientSecret == "" {
+		// TODO: split this into validate for signing/validate for exchange
+		//check if siwa object is valid, all required values have been set
+		if _, err = self.ValidateObject(); err != nil {
+			return nil, err
+		}
+
 		clientSecret, err = self.GetClientSecret()
 		if err != nil {
 			return nil, errors.New("Error while generating client_secret. " + err.Error())
