@@ -70,24 +70,24 @@ func (self Token) String() string {
 }
 
 //function to verify idtoken signature for apple published public key
-func verifyAppleRSA256(message string, signature []byte, kid string) bool {
-	var rsaPublicKey *rsa.PublicKey
-	var err error
-	var hashed [32]byte
+func verifyAppleRSA256(message string, signature []byte, kid string) error {
 	//get the public key
-	rsaPublicKey = getApplePublicKeyObject(kid, "RS256")
+	rsaPublicKey, err := getApplePublicKeyObject(kid, "RS256")
+	if err != nil {
+		return err
+	}
 
 	//if key found, validate
 	if rsaPublicKey != nil {
 		bytesToHash := []byte(message)
 		//get hash
-		hashed = sha256.Sum256(bytesToHash)
+		hashed := sha256.Sum256(bytesToHash)
 		err = rsa.VerifyPKCS1v15(rsaPublicKey, crypto.SHA256, hashed[:], signature)
 		if err != nil {
-			return false
+			return err
 		}
 	}
-	return true
+	return nil
 }
 
 //validates idToken without nonce check
@@ -163,11 +163,13 @@ func ValidateIdTokenWithNonce(aud string, idToken string, nonce string) (*SiwaId
 	var decodedSignature []byte
 	decodedSignature, err = base64UrlDecode(parts[2])
 	if err != nil {
-		reason = reason + " signature_base64_decode_failed error:" + err.Error()
+		reason = reason + fmt.Sprintf(" signature_base64_decode_failed [%s] ", err)
 		valid = false
-	} else if !verifyAppleRSA256(parts[0]+"."+parts[1], decodedSignature, jwtHeader.Kid) {
-		reason = reason + " signature_verification_failed"
-		valid = false
+	} else {
+		if err := verifyAppleRSA256(parts[0]+"."+parts[1], decodedSignature, jwtHeader.Kid); err != nil {
+			reason = reason + fmt.Sprintf(" signature_verification_failed [%s] ", err)
+			valid = false
+		}
 	}
 
 	//set the values of parsed token into the id token object
