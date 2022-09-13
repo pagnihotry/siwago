@@ -48,6 +48,7 @@ type SiwaConfig struct {
 	BundleId        string        //bundleId for product com.companyname.product
 	PemFileContents []byte        //contents of the p8 file
 	Nonce           string        //nonce is set while making the request to generate authorization_code. If you dont use it, keep it an empty string
+	ClientSecret    string        //client secret if already generated
 }
 
 //helper function to get SiwaConfig object
@@ -55,8 +56,17 @@ func GetObject(keyId string, teamId string, bundleId string, d time.Duration, no
 	return &SiwaConfig{KeyId: keyId, TokenDelta: d, TeamId: teamId, BundleId: bundleId, Nonce: nonce}
 }
 
+//construct a config when you're already generated the secret elsewhere
+func GetObjectWithSecret(bundleId, nonce, clientSecret string) *SiwaConfig {
+	return &SiwaConfig{BundleId: bundleId, Nonce: nonce, ClientSecret: clientSecret}
+}
+
 //function to validate the object
 func (self *SiwaConfig) ValidateObject() (bool, error) {
+	return self.ValidateForSecretGeneration()
+}
+
+func (self *SiwaConfig) ValidateForSecretGeneration() (bool, error) {
 
 	var errorString string = ""
 	if self.KeyId == "" {
@@ -77,6 +87,20 @@ func (self *SiwaConfig) ValidateObject() (bool, error) {
 
 	if errorString != "" {
 		return false, errors.New(errorString)
+	}
+	return true, nil
+}
+
+func (self *SiwaConfig) ValidateForTokenExchange() (bool, error) {
+
+	//we should either have a ClientSecret set or be fully valid to generate one
+	if self.ClientSecret == "" {
+		if ok, err := self.ValidateForSecretGeneration(); !ok {
+			return false, err
+		}
+	}
+	if self.BundleId == "" {
+		return false, errors.New("BundleId not set")
 	}
 	return true, nil
 }
@@ -182,7 +206,7 @@ func (self *SiwaConfig) GetClientSecret() (string, error) {
 	var r, s *big.Int
 	var hashBytes []byte
 
-	if _, err = self.ValidateObject(); err != nil {
+	if _, err = self.ValidateForSecretGeneration(); err != nil {
 		return "", err
 	}
 
@@ -253,14 +277,17 @@ func (self *SiwaConfig) validateWithApple(code string, codeType string, redirect
 	var siwaIdToken *SiwaIdToken
 
 	//check if siwa object is valid, all required values have been set
-	if _, err = self.ValidateObject(); err != nil {
+	if _, err = self.ValidateForTokenExchange(); err != nil {
 		return nil, err
 	}
 
 	//gather form values for post
-	clientSecret, err = self.GetClientSecret()
-	if err != nil {
-		return nil, errors.New("Error while generating client_secret. " + err.Error())
+	clientSecret = self.ClientSecret
+	if clientSecret == "" {
+		clientSecret, err = self.GetClientSecret()
+		if err != nil {
+			return nil, errors.New("Error while generating client_secret. " + err.Error())
+		}
 	}
 	form = url.Values{}
 	form.Add("client_id", self.BundleId)

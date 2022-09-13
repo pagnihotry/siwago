@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -75,47 +76,47 @@ func getApplePublicKeys() ([]AppleKey, error) {
 }
 
 //get apple public key from the keys array
-func getApplePublicKey(kid string) *AppleKey {
-
-	var keys []AppleKey
-	var err error
-
+func getApplePublicKey(kid string) (*AppleKey, error) {
 	//get the apple published public keys
-	keys, err = getApplePublicKeys()
-	if err != nil || keys == nil {
-		return nil
+	keys, err := getApplePublicKeys()
+	if err != nil {
+		return nil, err
+	}
+	if keys == nil {
+		return nil, errors.New("no keys returned by Apple")
 	}
 
 	//extract the key with specified kid
 	for _, key := range keys {
 		if key.Kid == kid {
 			//stop and return if found
-			return &key
+			return &key, nil
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("could not find key %q", kid)
 }
 
 //locally cache and get apple rsa.PublicKey object
-func getApplePublicKeyObject(kid string, alg string) *rsa.PublicKey {
+func getApplePublicKeyObject(kid string, alg string) (*rsa.PublicKey, error) {
 
 	//if computed earlier, return the object
 	if key, ok := applePublicKeyObject[kid+alg]; ok {
-		return key
+		return key, nil
 	}
-
-	var applePublicKey *AppleKey
 
 	//get the key with specified kid from the web
-	applePublicKey = getApplePublicKey(kid)
-	//if ket found, contrust a rsa.PublikKey object
-	if applePublicKey != nil && applePublicKey.Alg == alg {
+	applePublicKey, err := getApplePublicKey(kid)
+	if err != nil {
+		return nil, err
+	}
+	//if key found, contrust a rsa.PublikKey object
+	if applePublicKey.Alg == alg {
 		key := getPublicKeyObject(applePublicKey.N, applePublicKey.E)
 		applePublicKeyObject[kid+alg] = key
-		return key
+		return key, nil
 	}
-	return nil
+	return nil, fmt.Errorf("Apple public key had wrong alg: wanted %q but found %q", alg, applePublicKey.Alg)
 }
 
 //function to generate rsa.PublicKey object from encoded modulo and exponent
