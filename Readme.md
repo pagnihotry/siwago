@@ -1,15 +1,26 @@
 # Siwago
 
-Siwago is an implementation of authenticating "Sign in with Apple" tokens with Apple servers. It implements the validation and generation of tokens outlined at this link: https://developer.apple.com/documentation/signinwithapplerestapi/generate_and_validate_tokens
+This is an active fork of https://github.com/pagnihotry/siwago, which seems to
+be unmaintained. The main feature added is the ability to generate client
+secrets separately from the sign-in server itself, so you don't have to make the
+private key accessible to the web server.
 
-This repo contains the functionality to validate the authorization code provided to the client while signing in with Apple and to generate access_token. This is intended to be used on the server side.
+Siwago is an implementation of authenticating "Sign in with Apple" tokens with
+Apple servers. It implements the validation and generation of tokens outlined at
+this link:
+https://developer.apple.com/documentation/signinwithapplerestapi/generate_and_validate_tokens
 
-This implementation has no external dependencies and manages encoding and singing using the go provided core functions.
+This repo contains the functionality to validate the authorization code provided
+to the client while signing in with Apple and to generate access_token. This is
+intended to be used on the server side.
+
+This implementation has no external dependencies and manages encoding and
+singing using the go provided core functions.
 
 ## Install & Usage
 
 ### Install
-Execute `go get github.com/pagnihotry/siwago`. This installs the package in your `$GOPATH`. 
+Execute `go get github.com/remixlabs/siwago`. This installs the package in your `$GOPATH`. 
 
 ### Usage
 Get the tokens from Apple in the following three steps:
@@ -18,7 +29,8 @@ Get the tokens from Apple in the following three steps:
     - Using file: `siwagoObj.SetSecretP8File("/etc/keys/AuthKey_3UHT5POLK9.p8")`
     - Using file contents as string: `siwagoObj.SetSecretP8String("//-----BEGIN PRIVATE KEY-----\njkfweshjdjkhjsbjvguybjebvuewkvbbhj+jbdhbjhbvjhbvjhbvbjvbvjvagcve\njkfweshjdjkhjsbjvguybje/vuewkvbbhjdjbdhbjhbvjhbvjhbvbjvbvjvagcve\njkfweshjdjkhjsbjvguybjebvuewkvbbhj+jbdhbjhbvjhbvjhbvbjvbvjvagcve\njkfweshj\n-----END PRIVATE KEY-----")`
     - Using file contents as []byte: `siwagoObj.SetSecretP8Bytes(byteContents)`
-3. Exchange the code for a token `token, err :=siwagoObj.ExchangeAuthCode(code, redirectUri)` `redirectUri` can be `""` if it does not apply
+3. Exchange the code for a token `token, err := siwagoObj.ExchangeAuthCode(code, redirectUri)`.
+   `redirectUri` can be `""` if it does not apply
 
 Alternatively, you can split the secret generation and token steps as follows:
 1. Initialize the SiwaConfig object `siwago.GetObject(KID, TEAMID, BUNDLEID, duration, "")`.
@@ -28,14 +40,22 @@ Alternatively, you can split the secret generation and token steps as follows:
 4. Token exchange: `token, err :=siwagoObj.ExchangeAuthCode(code, redirectUri)`
 
 
-If there is an error `token.Error` is set to the error recieved from Apple. More info: https://developer.apple.com/documentation/signinwithapplerestapi/errorresponse 
+If there is an error `token.Error` is set to the error recieved from Apple. More
+info:
+https://developer.apple.com/documentation/signinwithapplerestapi/errorresponse 
 
-In case of success token object is populated with the access token, refresh token, etc. from Apple. More info: https://developer.apple.com/documentation/signinwithapplerestapi/tokenresponse
+In case of success token object is populated with the access token, refresh
+token, etc. from Apple. More info:
+https://developer.apple.com/documentation/signinwithapplerestapi/tokenresponse
 
 ## Details
 
 ### SiwaConfig object
-This object holds the app configuration that will be used to generate JWT token. This token can be initialized using a helper function `GetObject(keyId string, teamId string, bundleId string, d time.Duration)` or directly `SiwaConfig{KeyId: keyId, TokenDelta: d, TeamId: teamId, BundleId: bundleId}`
+
+This object holds the app configuration that will be used to generate JWT token.
+This token can be initialized using a helper function `GetObject(keyId string,
+teamId string, bundleId string, d time.Duration)` or directly `SiwaConfig{KeyId:
+keyId, TokenDelta: d, TeamId: teamId, BundleId: bundleId}`
 
 ```go
 type SiwaConfig struct {
@@ -58,7 +78,8 @@ type SiwaConfig struct {
 
 ### Setting Secret
 
-The signing secret or the private key can be set with a file on the disk - .p8 file downloaded from the Apple Developer website, or as a `string` or `[]byte`. 
+The signing secret or the private key can be set with a file on the disk - .p8
+file downloaded from the Apple Developer website, or as a `string` or `[]byte`. 
 
 Private key file format:
 ```
@@ -87,7 +108,13 @@ func (self *SiwaConfig) SetSecretP8Bytes(p8Contents []byte)
 
 ### Token object
 
-The token object is returned by the `ExchangeAuthCode` method. This contains the response from Apple. The API returns a [TokenResponse](https://developer.apple.com/documentation/signinwithapplerestapi/tokenresponse) or [ErrorResponse](https://developer.apple.com/documentation/signinwithapplerestapi/errorresponse). If there is an error, the `Token.Error` is set with the message, else all the other fields are populated.
+The token object is returned by the `ExchangeAuthCode` method. This contains the
+response from Apple. The API returns a
+[TokenResponse](https://developer.apple.com/documentation/signinwithapplerestapi/tokenresponse)
+or
+[ErrorResponse](https://developer.apple.com/documentation/signinwithapplerestapi/errorresponse).
+If there is an error, the `Token.Error` is set with the message, else all the
+other fields are populated.
 
 To check for errors, see if `.Error` is `""`.
 
@@ -126,11 +153,13 @@ The `id_token` returned by apple is validated as follows:
 - Verify that the aud field is the developer’s client_id
 - Verify that the time is earlier than the exp value of the token
 
-This is as per the guidelines on apple developer website at https://developer.apple.com/documentation/signinwithapplerestapi/verifying_a_user
+This is as per the guidelines on apple developer website at
+https://developer.apple.com/documentation/signinwithapplerestapi/verifying_a_user
 
 ## Sample code
 
-Here is a sample implementation for checking the token
+Here is a sample implementation for checking the token:
+
 ```go
 package main
 
